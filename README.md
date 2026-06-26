@@ -14,14 +14,22 @@ never sent automatically.
 3. **Parse** each message — extract the plain-text body and save any
    attachments to `downloads/`.
 4. **Triage** each email with Gemini: a priority score (1–10), a category
-   (e.g. "Meeting Request", "Newsletter", "Urgent"), and a one-sentence
-   reason.
+   (e.g. "Meeting Request", "Newsletter", "Urgent"), a one-to-two
+   sentence summary of what the email actually says, and a one-sentence
+   reason for the score.
 5. **Label** the email in Gmail (`AI-Priority`, `AI-Medium`, or
    `AI-LowPriority`) based on the score.
 6. **Reason and act** on high-priority emails: a ReAct-style step gives
    Gemini a small toolset — `draft_reply`, `flag_for_scheduling`, or
    `no_action_needed` — and lets the model decide which one applies,
-   then actually executes it against the Gmail API.
+   then actually executes it against the Gmail API. `flag_for_scheduling`
+   checks your real Google Calendar (read-only) and proposes specific
+   open time slots, rather than just asking the sender for their
+   availability.
+7. **Avoid duplicate drafts.** If a draft already exists on a thread,
+   the agent doesn't create another one — it reviews the existing draft
+   against the latest email and reports whether it still looks right or
+   should be edited, leaving the actual editing to you.
 
 There's also a standalone search mode: describe what you're looking for
 in plain English, and the agent translates it into Gmail's search syntax
@@ -68,6 +76,22 @@ cp .env.example .env
 contain sensitive material — they're already excluded via `.gitignore`
 and should never be committed.
 
+### 4. Calendar access (only needed for scheduling)
+
+In the same Cloud Console project, also enable the **Google Calendar
+API** (Library → search "Google Calendar API" → Enable). The existing
+`credentials.json` OAuth client works for both APIs — no second client
+needed.
+
+The first time the agent drafts a scheduling reply, it will separately
+prompt you to authorize **read-only** calendar access. This creates a
+second token file, `calendar_token.json`, kept separate from Gmail's
+`token.json` so you can use the email features without ever granting
+calendar access if you don't want to.
+
+The agent only ever **reads** free/busy data. It never creates, edits,
+or deletes calendar events.
+
 ## Running it
 
 ```bash
@@ -92,6 +116,7 @@ Agent active. Checking for unread emails...
 Processing: Q3 Budget Review — need your sign-off by Friday
   From: Dana Lee <dana@company.com>
   Score: 9/10 | Category: Urgent
+  Summary: Dana is asking you to review and approve the Q3 budget numbers before end of week.
   Reason: Requires a decision with an explicit deadline this week.
   [ACTION] Labeled as 'AI-Priority'
   [REACT->draft_reply] Created draft reply. (Direct question needing a timely response.)
@@ -99,6 +124,7 @@ Processing: Q3 Budget Review — need your sign-off by Friday
 Processing: Are you free for a quick call next week?
   From: Alex Rivera <alex@partner.io>
   Score: 8/10 | Category: Meeting Request
+  Summary: Alex wants to schedule a short call sometime next week to discuss the partnership.
   Reason: Sender is requesting a scheduling decision.
   [ACTION] Labeled as 'AI-Priority'
   [REACT->flag_for_scheduling] Created draft proposing scheduling follow-up.
@@ -106,6 +132,7 @@ Processing: Are you free for a quick call next week?
 Processing: Your receipt from Acme Hosting
   From: billing@acmehosting.com
   Score: 2/10 | Category: Notification
+  Summary: Automated receipt confirming a hosting payment was processed.
   Reason: Automated transactional receipt, no response needed.
   [ACTION] Labeled as 'AI-LowPriority'
 
@@ -117,7 +144,9 @@ Batch complete.
 ```
 agent.py          # Main pipeline: auth, fetch, triage, label, ReAct dispatch
 react_actions.py  # Tool definitions + execution for the ReAct decision step
+calendar_tools.py # Read-only Google Calendar free/busy lookup + slot computation
 test.py           # Quick Gemini API connectivity check
+test_react_actions.py  # Mock-based tests for the ReAct decision logic
 requirements.txt
 .env.example
 ```
@@ -136,7 +165,16 @@ A few constants at the top of `agent.py` control behavior:
 ## Limitations
 
 - Drafts only — nothing is ever sent without a human clicking send.
-- Scheduling support proposes time windows in a draft reply; it does not
-  read or write to Google Calendar.
+- Scheduling proposes real open slots from your primary Google Calendar,
+  but only checks free/busy — it doesn't account for personal
+  preferences (e.g. "no meetings before 10am") beyond the fixed
+  9am–5pm window in `calendar_tools.py`.
+- Calendar access is read-only; the agent cannot create, move, or
+  delete events.
+- Proposed time slots are currently shown in UTC, not your local time
+  zone — adjust `format_slots_for_email` in `calendar_tools.py` if you
+  want a specific time zone rendered instead.
+- If a draft already exists on a thread, the agent reviews it via a
+  text suggestion rather than editing it directly in Gmail.
 - Designed for single-user, local/CLI use — there's no multi-account or
   server deployment story here.
