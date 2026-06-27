@@ -1,5 +1,17 @@
 .env
 *.json
 !env.example.json
+calendar_token.json
 __pycache__/
 .venv/
+
+credentials.json
+token.json
+downloads/
+*.pyc
+*.pyo
+venv/
+*.egg-info/
+.DS_Store
+.vscode/
+.idea/
