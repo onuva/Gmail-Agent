@@ -251,7 +251,6 @@ def run_agent():
 
             print(f"  {tag}")
 
-            # --- ReAct step: only for high-priority emails ---
             if score >= HIGH_PRIORITY_THRESHOLD:
                 try:
                     react_log = decide_and_act(

@@ -8,14 +8,6 @@ from google.genai import types
 
 import calendar_tools
 
-
-# ---------------------------------------------------------------------------
-# Tool declarations — these are exposed to Gemini so IT decides whether and
-# which one to call, given the email content and the triage result. This is
-# the ReAct piece: Reason (decide which tool, if any, applies) -> Act (the
-# tool actually runs against the Gmail API) -> the result is reported back.
-# ---------------------------------------------------------------------------
-
 DRAFT_REPLY_TOOL = {
     "name": "draft_reply",
     "description": (
@@ -170,8 +162,6 @@ def _build_scheduling_reply(acknowledgement):
             f"Let me know if any of these work, or suggest another time."
         )
 
-    # Calendar check unavailable or genuinely no slots found — fall back
-    # to asking the sender, rather than failing the draft entirely.
     return (
         f"{acknowledgement}\n\n"
         f"Could you share a couple of times that work for you, and I'll confirm?"

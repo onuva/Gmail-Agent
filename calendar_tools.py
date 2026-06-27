@@ -9,7 +9,6 @@ from googleapiclient.discovery import build
 CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 CALENDAR_TOKEN_FILE = "calendar_token.json"
 
-# Working-hours window used when proposing slots. Adjust to taste.
 WORKDAY_START_HOUR = 9
 WORKDAY_END_HOUR = 17
 SLOT_LENGTH_MINUTES = 30
@@ -88,8 +87,6 @@ def compute_open_slots(busy_blocks, days_ahead=LOOKAHEAD_DAYS,
         day_end = day.replace(hour=workday_end, minute=0, second=0, microsecond=0)
 
         slot_start = max(day_start, now) if day_offset == 0 else day_start
-        # Round up to the next slot boundary so we don't propose a slot
-        # that started in the past or mid-hour.
         slot_start = _round_up_to_slot(slot_start, slot_minutes)
 
         while slot_start + datetime.timedelta(minutes=slot_minutes) <= day_end:
